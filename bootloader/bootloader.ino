@@ -17,11 +17,67 @@
  * 
  */
 
-void setup() {
-  
+#define STM Serial1   // serial port connected to STM32
 
+byte recv = 0x00;
+
+//----------------------------------------------------------------
+// HELPER FUNCTIONS
+//----------------------------------------------------------------
+
+/*
+ * stm_send, send byte over STM serial connection
+ * return: none
+ * param: byte cmd, byte to send
+ */
+inline void stm_send(byte cmd)
+{
+  STM.write(cmd);
 }
 
-void loop() {
+//----------------------------------------------------------------
+
+/*
+ * stm_init, init STM USART connection
+ * return: bool, true if successful
+ * param: none
+ */
+bool stm_init()
+{
+  // STM waits for 0x7F to init USART
+  stm_send(0x7F);
+  while(!STM.available());  // wait for ACK
+
+  return ( (STM.read() == 0x79) ? true : false);
+}
+
+//----------------------------------------------------------------
+// SETUP
+//----------------------------------------------------------------
+
+void setup() {
+  // Init serial
+  Serial.begin(115200);           // debug console
+  STM.begin(57600, SERIAL_8E1);   // STM UART connection // 8bits, even parity, 1 stop
   
+  delayMicroseconds(1227);        // wait for STM bootloader to load
+  
+  if(stm_init() == true)
+  {
+    Serial.println("INIT SUCCESSFULL");
+  }
+  else 
+  {
+    Serial.println("INIT FAILED");
+    while(1);
+  }
+  
+}
+
+//----------------------------------------------------------------
+// LOOP
+//----------------------------------------------------------------
+
+void loop() {  
+
 }
