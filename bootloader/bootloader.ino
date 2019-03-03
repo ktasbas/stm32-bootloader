@@ -309,10 +309,14 @@ void loop() {
     while(1);
   }
 
-  if(stmWriteMemory(addr, write_arr, write_len))
+  if(stmEraseMemory()) Serial.println("MEMORY ERASED");
+  else
   {
-    Serial.println("MEMORY WRITTEN");
+    Serial.println("ERASE FAILED");
+    while(1);
   }
+
+  if(stmWriteMemory(addr, write_arr, write_len)) Serial.println("MEMORY WRITTEN");
   else
   {
     Serial.println("WRITE FAILED");
