@@ -17,6 +17,9 @@
  * 
  */
 
+#include "binary.h"   // contains bootloader binary in hex format
+                      // const byte binary[21140]
+
 #define STM Serial1   // serial port connected to STM32
 
 #define ACK 0x79      // acknowledge byte from STM
