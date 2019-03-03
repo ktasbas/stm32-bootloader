@@ -144,6 +144,38 @@ bool stmReadMemory(int addr, byte* arr, int* len)
 }
 
 /*----------------------------------------------------------------
+ * stmEraseMemory, performs a global erase of all flash memory
+ * return: bool, true if successful
+ * param: none
+ */
+bool stmEraseMemory(void)
+{
+  Serial.println("Sending erase command...");
+  stmSend(0x43);          // send read command
+  stmSend(0x43 ^ 0xFF);   // send checksum
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  Serial.println("Sending global code...");
+  stmSend(0xFF);          // send global erase code
+  stmSend(0xFF ^ 0xFF);   // send checksum
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  return true;
+}
+
+/*----------------------------------------------------------------
+ * stmFlushRx, clears DUEs RX buffer from STM32
+ * return: none
+ * param: none
+ */
+void stmFlushRx(void)
+{
+  while(STM.available()) STM.read();  // clear DUEs RX buffer
+}
+
+/*----------------------------------------------------------------
  * stm_init, init STM USART connection
  * return: bool, true if successful
  * param: none
@@ -217,7 +249,24 @@ void loop() {
   int addr = 0x08000000;
   
   if(stmReadMemory(addr, arr, &len)) printArr(arr);
-  else Serial.println("READ FAILED");
+  else
+  {
+    Serial.println("READ FAILED");
+    while(1);
+  }
+
+  stmFlushRx();
+
+  if(stmEraseMemory())
+  {
+    Serial.println("MEMORY ERASED");
+    if(stmReadMemory(addr, arr, &len)) printArr(arr);
+    else Serial.println("READ FAILED");
+  }
+  else
+  {
+    Serial.println("ERASE FAILED");
+  }
   
   while(1);
 }
