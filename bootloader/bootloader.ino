@@ -99,6 +99,51 @@ template< typename T, size_t len > void printArr(const T (&arr)[len])
 }
 
 /*----------------------------------------------------------------
+ * stmReadMemory, reads the flash memory of the STM32
+ * return: bool, true if successful
+ *         arr, memory values returned from STM32
+ *         len, number of bytes returned
+ * param: int   addr, start address of flash memory to read
+ *        byte* arr, array to store returned values
+ *        int*  len, number of bytes to read (max 256)
+ * 
+ */
+bool stmReadMemory(int addr, byte* arr, int* len)
+{
+  stmSend(0x11);          // send read command
+  stmSend(0x11 ^ 0xFF);   // send checksum
+  
+  if(stmRead() != ACK) return false;  // wait for ACK
+  
+  byte byte3 = (addr >> 0) & 0xFF;    // addr lsb
+  byte byte2 = (addr >> 8) & 0xFF;
+  byte byte1 = (addr >> 16) & 0xFF;
+  byte byte0 = (addr >> 24) & 0xFF;   // addr msb
+  byte crc = byte0 ^ byte1 ^ byte2 ^ byte3;  // checksum
+
+  stmSend(byte0);
+  stmSend(byte1);
+  stmSend(byte2);
+  stmSend(byte3);
+  stmSend(crc);
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  byte len_byte = static_cast<byte>(*len) - 1;
+  stmSend(len_byte);    // length of read
+  stmSend(len_byte ^ 0xFF);   // checksum
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  for(size_t i = 0; i <= len_byte; i++)
+  {
+    arr[i] = stmRead();
+  }
+  *len = len_byte;    // update length of array
+  return true;
+}
+
+/*----------------------------------------------------------------
  * stm_init, init STM USART connection
  * return: bool, true if successful
  * param: none
@@ -131,6 +176,23 @@ void setup() {
   Serial.begin(115200);           // debug console
   STM.begin(57600, SERIAL_8E1);   // STM UART connection // 8bits, even parity, 1 stop
   
+/*----------------------------------------------------------------
+ * printArr, prints array to console in HEX format
+ * return: none
+ * param: byte* arr, array to be printed
+ *        int   len, length of array
+ *
+void printArr(byte* arr, int len)
+{
+  for(int i = 0; i < len; i++)
+  {
+    Serial.print(arr[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+*/
+
   delayMicroseconds(1227);        // wait for STM bootloader to load
   
   if(stm_init() == true)
@@ -150,8 +212,12 @@ void setup() {
 //----------------------------------------------------------------
 
 void loop() {    
-  // issue Get command
-
+  byte arr[256] = { 0 };
+  int len = 256;
+  int addr = 0x08000000;
+  
+  if(stmReadMemory(addr, arr, &len)) printArr(arr);
+  else Serial.println("READ FAILED");
   
   while(1);
 }
