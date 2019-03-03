@@ -189,7 +189,7 @@ bool stmEraseMemory(void)
  *        byte* arr, values to be written
  *        int   len, length of arr
  */
-bool stmWriteMemory(int addr, byte* arr, int len)
+bool stmWriteMemory(int addr, const byte* arr, int len)
 {
   if (len > 256) return false;  // max write length
   
