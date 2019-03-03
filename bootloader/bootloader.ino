@@ -99,6 +99,16 @@ template< typename T, size_t len > void printArr(const T (&arr)[len])
 }
 
 /*----------------------------------------------------------------
+ * stmFlushRx, clears DUEs RX buffer from STM32
+ * return: none
+ * param: none
+ */
+void stmFlushRx(void)
+{
+  while(STM.available()) STM.read();  // clear DUEs RX buffer
+}
+
+/*----------------------------------------------------------------
  * stmReadMemory, reads the flash memory of the STM32
  * return: bool, true if successful
  *         arr, memory values returned from STM32
@@ -217,16 +227,6 @@ bool stmWriteMemory(int addr, byte* arr, int len)
   if(stmRead() != ACK) return false;  // wait for ACK
   
   return true;
-}
-
-/*----------------------------------------------------------------
- * stmFlushRx, clears DUEs RX buffer from STM32
- * return: none
- * param: none
- */
-void stmFlushRx(void)
-{
-  while(STM.available()) STM.read();  // clear DUEs RX buffer
 }
 
 /*----------------------------------------------------------------
