@@ -300,17 +300,13 @@ void printArr(byte* arr, int len)
 // LOOP
 //----------------------------------------------------------------
 
-void loop() {    
-  byte arr[256] = { 0 }, write_arr[256] = { 0 };
-  int len = 256, write_len = 256;
+void loop() {
+  // array to write: binary[21140]
+  int len = 21140;
+  int count = 0;
   int addr = 0x08000000;
-  
-  if(stmReadMemory(addr, arr, &len)) printArr(arr);
-  else
-  {
-    Serial.println("READ FAILED");
-    while(1);
-  }
+
+  delay(2); // need delay or smtReadMemory here or else it breaks?
 
   if(stmEraseMemory()) Serial.println("MEMORY ERASED");
   else
@@ -319,19 +315,24 @@ void loop() {
     while(1);
   }
 
-  if(stmWriteMemory(addr, write_arr, write_len)) Serial.println("MEMORY WRITTEN");
-  else
+  while(len > 256)
   {
-    Serial.println("WRITE FAILED");
-    while(1);
+    Serial.println(count);
+    // write in 256 byte blocks
+    if( stmWriteMemory(addr, &binary[256*count], 256) )
+    {
+      Serial.println("pass");
+    }
+    else
+    {
+      Serial.println("fail");
+      while(1);
+    }
+    addr += 256;
+    count++;
+    len -= 256;    
   }
-
-  if(stmReadMemory(addr, arr, &len)) printArr(arr);
-  else
-  {
-    Serial.println("READ FAILED");
-    while(1);
-  }
+  stmWriteMemory(addr, &binary[(21140 - len)], len);
   
   while(1);
 }
