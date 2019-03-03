@@ -19,38 +19,38 @@
 
 #define STM Serial1   // serial port connected to STM32
 
-byte recv = 0x00;
+#define ACK 0x79      // acknowledge byte from STM
+
+byte global_arr[512] = { 0 };
+int global_len = 512;
 
 //----------------------------------------------------------------
 // HELPER FUNCTIONS
 //----------------------------------------------------------------
 
-/*
- * stm_send, send byte over STM serial connection
+/*----------------------------------------------------------------
+
+ * stmSend, send byte over STM serial connection
  * return: none
  * param: byte cmd, byte to send
  */
-inline void stm_send(byte cmd)
+inline void stmSend(byte cmd)
 {
   STM.write(cmd);
 }
 
-//----------------------------------------------------------------
-
-/*
- * stm_read, blocks until byte recv from STM
+/*----------------------------------------------------------------
+ * stmRead, blocks until byte recv from STM
  * return: byte, value recv from STM
  * param: none
  */
-inline byte stm_read()
+inline byte stmRead()
 {
   while(!STM.available());  // wait to recv byte
   return STM.read();
 }
 
-//----------------------------------------------------------------
-
-/*
+/*----------------------------------------------------------------
  * stmCmdGeneric, executes chosen generic command
  * return: bool, true if successful
  *         arr, values returned by command
@@ -61,31 +61,29 @@ inline byte stm_read()
  */
 bool stmCmdGeneric(byte cmd, byte* arr, int* len)
 {
-  stm_send(cmd);         // send command
-  stm_send(cmd ^ 0xFF);  // send checksum
+  stmSend(cmd);         // send command
+  stmSend(cmd ^ 0xFF);  // send checksum
 
-  if(stm_read() != 0x79)
+  if(stmRead() != ACK)
   {
     // ACKNOWLEDGE FAILED
     return false;
   }
   else
   {
-    int recv_len = stm_read() + 1;      // number of bytes in response
+    int recv_len = stmRead() + 1;      // number of bytes in response
     if(recv_len > *len) recv_len = *len;  // limit recv_len to size of arr
 
     for(int i = 0; i < recv_len; i++)
     {
-      arr[i] = stm_read();    // load response into arr
+      arr[i] = stmRead();    // load response into arr
     }
     
     *len = recv_len;   // update arr length
   }
 }
 
-//----------------------------------------------------------------
-
-/*
+/*----------------------------------------------------------------
  * printArr, prints array to console in HEX format
  * return: none
  * param: byte* arr, array to be printed
@@ -101,9 +99,7 @@ void printArr(byte* arr, int len)
   Serial.println();
 }
 
-//----------------------------------------------------------------
-
-/*
+/*----------------------------------------------------------------
  * stm_init, init STM USART connection
  * return: bool, true if successful
  * param: none
@@ -111,10 +107,20 @@ void printArr(byte* arr, int len)
 bool stm_init()
 {
   // STM waits for 0x7F to init USART
-  stm_send(0x7F);
-  while(!STM.available());  // wait for ACK
+  stmSend(0x7F);
+  byte recv = stmRead();
+  if(recv != ACK) return false;   // ACK FAILED
 
-  return ( (STM.read() == 0x79) ? true : false);
+  // get chip ID
+  if( stmCmdGeneric(0x02, global_arr, &global_len) )
+  {
+    byte msb = global_arr[0];
+    byte lsb = global_arr[1];
+    int chip_id = (msb << 8) + (lsb << 0);
+    
+    if(chip_id == 0x410) return true;
+  } 
+  return false;
 }
 
 //----------------------------------------------------------------
@@ -130,7 +136,7 @@ void setup() {
   
   if(stm_init() == true)
   {
-    Serial.println("INIT SUCCESSFULL");
+    Serial.println("INIT SUCCESSFUL");
   }
   else 
   {
@@ -144,15 +150,9 @@ void setup() {
 // LOOP
 //----------------------------------------------------------------
 
-void loop() {  
-  byte arr[512] = { 0 };
-  int len = 512;
-  
+void loop() {    
   // issue Get command
-  if( stmCmdGeneric(0x00, arr, &len) )
-  {
-    printArr(arr, len);
-  }
+
   
   while(1);
 }
