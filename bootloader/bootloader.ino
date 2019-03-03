@@ -86,12 +86,11 @@ bool stmCmdGeneric(byte cmd, byte* arr, int* len)
 /*----------------------------------------------------------------
  * printArr, prints array to console in HEX format
  * return: none
- * param: byte* arr, array to be printed
- *        int   len, length of array
+ * param: array of any data type
  */
-void printArr(byte* arr, int len)
+template< typename T, size_t len > void printArr(const T (&arr)[len])
 {
-  for(int i = 0; i < len; i++)
+  for(size_t i = 0; i < len; i++)
   {
     Serial.print(arr[i], HEX);
     Serial.print(" ");
