@@ -179,14 +179,6 @@ bool stmEraseMemory(void)
 bool stmWriteMemory(int addr, byte* arr, int len)
 {
   if (len > 256) return false;  // max write length
-
-  byte len_byte = static_cast<byte>(len) - 1;   // number of bytes to write
-  byte arr_crc = len_byte;    // XOR(arr, len) checksum for later
-  
-  for(size_t i = 0; i < len; i++)
-  {
-    arr_crc ^= arr[i];  // calculate XOR(arr, len)
-  }
   
   stmFlushRx();   // clear DUE RX buffer from STM32
   
@@ -209,14 +201,18 @@ bool stmWriteMemory(int addr, byte* arr, int len)
 
   if(stmRead() != ACK) return false;  // wait for ACK
 
+  byte len_byte = static_cast<byte>(len) - 1;   // number of bytes to write
+  crc = len_byte;    // XOR(arr, len) checksum for later
+  
   stmSend(len_byte);    // length of write
   
   for(size_t i = 0; i < len; i++)
   {
+    crc ^= arr[i];    // calculate checksum
     stmSend(arr[i]);  // send data bytes
   }
 
-  stmSend(arr_crc);   // send checksum
+  stmSend(crc);   // send checksum
   
   if(stmRead() != ACK) return false;  // wait for ACK
   
