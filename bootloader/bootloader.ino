@@ -110,6 +110,8 @@ template< typename T, size_t len > void printArr(const T (&arr)[len])
  */
 bool stmReadMemory(int addr, byte* arr, int* len)
 {
+  stmFlushRx();
+  
   stmSend(0x11);          // send read command
   stmSend(0x11 ^ 0xFF);   // send checksum
   
@@ -150,6 +152,8 @@ bool stmReadMemory(int addr, byte* arr, int* len)
  */
 bool stmEraseMemory(void)
 {
+  stmFlushRx();
+  
   Serial.println("Sending erase command...");
   stmSend(0x43);          // send read command
   stmSend(0x43 ^ 0xFF);   // send checksum
@@ -162,6 +166,60 @@ bool stmEraseMemory(void)
 
   if(stmRead() != ACK) return false;  // wait for ACK
 
+  return true;
+}
+
+/*----------------------------------------------------------------
+ * stmWriteMemory, writes array to STM32 flash memory
+ * return: true if successful
+ * param: int   addr, address to begin writing
+ *        byte* arr, values to be written
+ *        int   len, length of arr
+ */
+bool stmWriteMemory(int addr, byte* arr, int len)
+{
+  if (len > 256) return false;  // max write length
+
+  byte len_byte = static_cast<byte>(len) - 1;   // number of bytes to write
+  byte arr_crc = len_byte;    // XOR(arr, len) checksum for later
+  
+  for(size_t i = 0; i < len; i++)
+  {
+    arr_crc ^= arr[i];  // calculate XOR(arr, len)
+  }
+  
+  stmFlushRx();   // clear DUE RX buffer from STM32
+  
+  stmSend(0x31);          // send write command
+  stmSend(0x31 ^ 0xFF);   // send checksum
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  byte byte3 = (addr >> 0) & 0xFF;    // addr lsb
+  byte byte2 = (addr >> 8) & 0xFF;
+  byte byte1 = (addr >> 16) & 0xFF;
+  byte byte0 = (addr >> 24) & 0xFF;   // addr msb
+  byte crc = byte0 ^ byte1 ^ byte2 ^ byte3;  // checksum
+
+  stmSend(byte0);
+  stmSend(byte1);
+  stmSend(byte2);
+  stmSend(byte3);
+  stmSend(crc);
+
+  if(stmRead() != ACK) return false;  // wait for ACK
+
+  stmSend(len_byte);    // length of write
+  
+  for(size_t i = 0; i < len; i++)
+  {
+    stmSend(arr[i]);  // send data bytes
+  }
+
+  stmSend(arr_crc);   // send checksum
+  
+  if(stmRead() != ACK) return false;  // wait for ACK
+  
   return true;
 }
 
@@ -244,8 +302,8 @@ void printArr(byte* arr, int len)
 //----------------------------------------------------------------
 
 void loop() {    
-  byte arr[256] = { 0 };
-  int len = 256;
+  byte arr[256] = { 0 }, write_arr[256] = { 0 };
+  int len = 256, write_len = 256;
   int addr = 0x08000000;
   
   if(stmReadMemory(addr, arr, &len)) printArr(arr);
@@ -255,17 +313,21 @@ void loop() {
     while(1);
   }
 
-  stmFlushRx();
-
-  if(stmEraseMemory())
+  if(stmWriteMemory(addr, write_arr, write_len))
   {
-    Serial.println("MEMORY ERASED");
-    if(stmReadMemory(addr, arr, &len)) printArr(arr);
-    else Serial.println("READ FAILED");
+    Serial.println("MEMORY WRITTEN");
   }
   else
   {
-    Serial.println("ERASE FAILED");
+    Serial.println("WRITE FAILED");
+    while(1);
+  }
+
+  if(stmReadMemory(addr, arr, &len)) printArr(arr);
+  else
+  {
+    Serial.println("READ FAILED");
+    while(1);
   }
   
   while(1);
